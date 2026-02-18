@@ -1,0 +1,386 @@
+<!doctype html>
+<html lang="el">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Email Signature Generator</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 24px; color: #222; }
+    .wrap { max-width: 980px; display: grid; grid-template-columns: 360px 1fr; gap: 24px; }
+    @media (max-width: 920px){ .wrap { grid-template-columns: 1fr; } }
+    label { display:block; font-size: 12px; margin: 14px 0 6px; color:#444; }
+    input { width: 100%; box-sizing: border-box; padding: 10px 12px; border: 1px solid #ccc; border-radius: 8px; font-size: 14px; }
+    input[readonly]{ background:#f6f6f6; }
+    .row { display:grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .hint { font-size: 12px; color:#666; margin-top: 6px; }
+    .error { background: #fff2f2; border: 1px solid #ffb3b3; color:#8a0000; padding: 10px 12px; border-radius: 8px; margin-top: 12px; display:none; }
+    .ok { background: #f3fff4; border: 1px solid #a8e6b1; color:#0b5a16; padding: 10px 12px; border-radius: 8px; margin-top: 12px; display:none; }
+    button { margin-top: 16px; padding: 12px 14px; border: 0; border-radius: 10px; background: #c10000; color: #fff; font-size: 14px; cursor: pointer; }
+    button:disabled { background: #bbb; cursor: not-allowed; }
+    .previewBox { border: 1px solid #ddd; border-radius: 12px; padding: 14px; }
+    .previewTitle { font-size: 12px; color:#666; margin: 0 0 10px; }
+    .mini { font-size: 12px; color:#666; margin-top: 10px; }
+    .code { white-space: pre-wrap; word-break: break-word; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 12px; background:#fafafa; border:1px solid #eee; border-radius:10px; padding:12px; max-height: 220px; overflow:auto; }
+  </style>
+</head>
+<body>
+
+  <div class="wrap">
+    <div>
+      <h2 style="margin:0 0 8px;">Signature Generator</h2>
+      <div class="hint">Συμπλήρωσε τα στοιχεία και κατέβασε το <b>email_signature.html</b>.</div>
+
+      <label>Ονοματεπώνυμο</label>
+      <input id="fullName" type="text" autocomplete="name" />
+
+      <label>Ιδιότητα</label>
+      <input id="role" type="text" />
+
+      <label>Email</label>
+      <input id="email" type="email" autocomplete="email" />
+
+      <label>Telephone (T) — σταθερό</label>
+      <input id="telFixed" type="text" readonly value="+357 22 47 77 77" />
+      <div class="hint">Το T είναι πάντα το κεντρικό.</div>
+
+      <label>Direct (D) — 8 ψηφία</label>
+      <input id="direct" type="text" inputmode="numeric" placeholder="π.χ. 22477849" />
+
+      <label>Mobile (M) — 8 ψηφία</label>
+      <input id="mobile" type="text" inputmode="numeric" placeholder="π.χ. 99123456" />
+
+      <label>Fax (F) — 8 ψηφία</label>
+      <input id="fax" type="text" inputmode="numeric" placeholder="π.χ. 22470000" />
+
+      <div id="msgError" class="error"></div>
+      <div id="msgOk" class="ok"></div>
+
+      <button id="btnDownload" disabled>Download email_signature.html</button>
+
+      <div class="mini">
+        Κανόνας: Εκτός από το T, μπορείς να βάλεις <b>έως 2</b> από D/M/F. Αν συμπληρώσεις και τα 3, δεν χωράνε σε μία γραμμή και το download μπλοκάρει.
+      </div>
+    </div>
+
+    <div class="previewBox">
+      <div class="previewTitle">Preview (HTML signature output)</div>
+      <div id="signaturePreview"></div>
+
+      <div class="mini">Raw HTML (για έλεγχο)</div>
+      <div id="rawHtml" class="code"></div>
+    </div>
+  </div>
+
+<script>
+/**
+ * Template βάση: Andreas_Polemidiotis.html (κρατάμε logos/urls/links όπως είναι).
+ * Αντικαθιστούμε μόνο:
+ * - Όνομα
+ * - Ιδιότητα
+ * - Email (mailto + κείμενο)
+ * - Phone row (T + έως 2 από D/M/F)
+ */
+const TEMPLATE = `<table role="presentation" width="500" cellspacing="0" cellpadding="0" border="0"
+style="width:500px;border-collapse:collapse;font-family:Arial,sans-serif;mso-table-lspace:0pt;mso-table-rspace:0pt;">
+
+<!-- ROW 1 -->
+<tr>
+
+<!-- LEFT LOGO -->
+<td width="105" height="95" valign="top"
+style="width:105px;height:95px;padding-right:10px;font-size:0;line-height:0;mso-line-height-rule:exactly;">
+<img src="https://omegalive.com.cy/wp-content/uploads/2026/02/omega-media-160x160-1.png"
+width="95" height="95" style="display:block;border:0;">
+</td>
+
+<!-- RIGHT TEXT BLOCK (bottom aligned to logo) -->
+<td width="395" height="95" valign="bottom" style="height:95px;padding:0;">
+
+<table width="100%" cellspacing="0" cellpadding="0" border="0" style="border-collapse:collapse;">
+
+<tr style="height:21px;mso-height-rule:exactly;">
+<td height="22" style="font-size:18px;font-weight:bold;color:#333333;line-height:22px;mso-line-height-rule:exactly;">
+Andreas Polemidiotis
+</td>
+</tr>
+
+<tr style="height:14px;mso-height-rule:exactly;">
+<td height="14" style="font-size:12px;color:#C10000;line-height:14px;mso-line-height-rule:exactly;">
+Omega Group Creative Director
+</td>
+</tr>
+
+<tr style="height:20px;mso-height-rule:exactly;">
+<td height="20" style="font-size:1px;line-height:1px;">&nbsp;</td>
+</tr>
+
+<tr style="height:18px;mso-height-rule:exactly;">
+<td height="18" style="font-size:13px;line-height:18px;mso-line-height-rule:exactly;">
+<b>E</b>
+<a href="mailto:a.polemidiotis@omegatv.com.cy" style="color:#666666;text-decoration:none;">
+a.polemidiotis@omegatv.com.cy
+</a>
+</td>
+</tr>
+
+<tr style="height:18px;mso-height-rule:exactly;">
+<td height="18" style="font-size:13px;line-height:18px;mso-line-height-rule:exactly;">
+<b>T</b>
+<a href="tel:+35722477777" style="color:#666666;text-decoration:none;">+357 22 477 777</a>
+<span style="color:#cccccc;padding:0 8px;">|</span>
+<b>D</b>
+<a href="tel:+35722477812" style="color:#666666;text-decoration:none;">+357 22 477 812</a>
+<span style="color: #cccccc; margin: 0 4px;">|</span> 
+<b>M</b>
+<a href="tel:+35799435484" style="text-decoration: none; color: #666666;">+357 99 435 484</a>
+</td>
+</tr>
+
+</table>
+</td>
+</tr>
+
+
+ <!-- ROW 2: PARTNER LOGOS (Width 500px) -->
+  <tr>
+    <td colspan="2" align="left" style="padding-top: 20px;">
+      
+      <!-- PARTNER LOGOS TABLE: Width set to 500px -->
+      <table width="500" cellspacing="0" cellpadding="0" border="0" style="width: 500px;">
+        <tr valign="bottom">
+          
+          <!-- Omega Channel (Align LEFT to start flush with group logo) -->
+          <td width="16%" align="left">
+            <a href="http://www.omegatv.com.cy" target="_blank"><img src="https://omegalive.com.cy/wp-content/uploads/2026/02/omega-channel-160x80-1.png" width="60" height="30" alt="Omega Channel" style="display: block; border: 0;"></a>
+          </td>
+          
+          <!-- Omega Live -->
+          <td width="16%" align="center">
+            <a href="https://omegalive.com.cy" target="_blank"><img src="https://omegalive.com.cy/wp-content/uploads/2026/02/omegalive-160x80-1.png" width="60" height="30" alt="Omega Live" style="display: block; border: 0;"></a>
+          </td>
+          
+          <!-- Super Sport -->
+          <td width="16%" align="center">
+            <a href="http://sport-fm.com.cy" target="_blank"><img src="https://omegalive.com.cy/wp-content/uploads/2026/02/supersport-160x80-1.png" width="50" height="25" alt="Super Sport 104" style="display: block; border: 0;"></a>
+          </td>
+          
+          <!-- Dromos -->
+          <td width="16%" align="center">
+            <a href="http://dromoscy.fm" target="_blank"><img src="https://omegalive.com.cy/wp-content/uploads/2026/02/dromos-80x80-1.png" width="25" height="25" alt="Dromos 100.5" style="display: block; border: 0;"></a>
+          </td>
+          
+          <!-- Talkers -->
+          <td width="16%" align="center">
+            <a href="https://www.youtube.com/@TolkersCy" target="_blank"><img src="https://omegalive.com.cy/wp-content/uploads/2026/02/tolkers-160x160-1.png" width="60" height="30" alt="Talkers Podcast" style="display: block; border: 0;"></a>
+          </td>
+          
+          <!-- Karamela (Align RIGHT to end exactly at 500px mark) -->
+          <td width="16%" align="right">
+            <a href="https://karamelalive.com" target="_blank"><img src="https://omegalive.com.cy/wp-content/uploads/2026/02/karamela-160x80-1.png" width="50" height="25" alt="Karamela" style="display: block; border: 0;"></a>
+          </td>
+          
+        </tr>
+      </table>
+
+<!-- ADDRESS -->
+<tr>
+<td colspan="2" style="padding-top:8px;font-size:10px;color:#666666;">
+15 Patriarchi Petrou VII Str., 2054 Strovolos, P.O.Box 27400, 1644 Nicosia . Cyprus
+</td>
+</tr>
+
+
+<!-- DISCLAIMER -->
+<tr>
+<td colspan="2" style="padding-top:15px;padding-bottom:30px;font-size:10px;color:#000000;line-height:14px;">
+<b>Disclaimer:</b> This email and its attachments may be confidential and are intended solely for the use of the individual to whom it is addressed. If you are not the intended recipient of this email and its attachments, you must take no action based upon them, nor must you copy or show them to anyone. Please contact the sender if you believe you have received this email in error.
+</td>
+</tr>
+
+
+<!-- AD -->
+<tr>
+<td colspan="2">
+<a href="https://pubads.g.doubleclick.net/gampad/jump?iu=/17337359/email_sig_ad&sz=500x90&c=12345" target="_blank">
+<img src="https://pubads.g.doubleclick.net/gampad/ad?iu=/17337359/email_sig_ad&sz=500x90&c=12345"
+width="500" height="90" style="display:block;border:0;">
+</a>
+</td>
+</tr>
+
+</table>`;
+
+const els = {
+  fullName: document.getElementById('fullName'),
+  role: document.getElementById('role'),
+  email: document.getElementById('email'),
+  direct: document.getElementById('direct'),
+  mobile: document.getElementById('mobile'),
+  fax: document.getElementById('fax'),
+  btn: document.getElementById('btnDownload'),
+  err: document.getElementById('msgError'),
+  ok: document.getElementById('msgOk'),
+  preview: document.getElementById('signaturePreview'),
+  raw: document.getElementById('rawHtml'),
+};
+
+function only8Digits(v){
+  return (v || '').replace(/\D/g,'').slice(0,8);
+}
+function formatCy(d8){
+  if(!d8 || d8.length !== 8) return '';
+  return `+357 ${d8.slice(0,2)} ${d8.slice(2,4)} ${d8.slice(4,6)} ${d8.slice(6,8)}`;
+}
+function telHref(d8){
+  // d8 = 8 digits
+  return `+357${d8}`;
+}
+
+// σταθερό T
+const T_DIGITS = '22477777';
+const T_LABEL = 'T';
+
+function buildPhoneRow(optional){
+  // optional: array of {label:'D'|'M'|'F', digits8:'........'}
+
+  const parts = [];
+  const compact = optional.length === 2; // T + 2 extra = 3 phones total
+
+  // spacing rules
+  const sepLarge = compact
+    ? `<span style="color:#cccccc;padding:0 4px;">|</span>`
+    : `<span style="color:#cccccc;padding:0 8px;">|</span>`;
+
+  const sepSmall = compact
+    ? `<span style="color:#cccccc;margin:0 2px;">|</span>`
+    : `<span style="color:#cccccc;margin:0 4px;">|</span>`;
+
+  // T always first
+  parts.push(`
+<b>T</b>
+<a href="tel:${telHref(T_DIGITS)}" style="color:#666666;text-decoration:none;">${formatCy(T_DIGITS)}</a>`.trim());
+
+  optional.forEach((p, idx) => {
+    const sep = (idx === 0) ? sepLarge : sepSmall;
+
+    parts.push(`
+${sep}
+<b>${p.label}</b>
+<a href="tel:${telHref(p.digits8)}" style="color:#666666;text-decoration:none;">${formatCy(p.digits8)}</a>`.trim());
+  });
+
+  return `<tr style="height:18px;mso-height-rule:exactly;">
+<td height="18" style="font-size:13px;line-height:18px;mso-line-height-rule:exactly;white-space:nowrap;">
+${parts.join('')}
+</td>
+</tr>`;
+}
+
+function buildEmailRow(email){
+  return `<tr style="height:18px;mso-height-rule:exactly;">
+<td height="18" style="font-size:13px;line-height:18px;mso-line-height-rule:exactly;">
+<b>E</b>
+<a href="mailto:${email}" style="color:#666666;text-decoration:none;">
+${email}
+</a>
+</td>
+</tr>`;
+}
+
+function sanitizeText(s){
+  // απλή αποφυγή εισαγωγής tags σε όνομα/ρόλο
+  return (s || '').replace(/[<>]/g,'').trim();
+}
+
+function validateAndRender(){
+  // sanitize
+  const fullName = sanitizeText(els.fullName.value);
+  const role = sanitizeText(els.role.value);
+  const email = (els.email.value || '').trim();
+
+  // digits
+  els.direct.value = only8Digits(els.direct.value);
+  els.mobile.value = only8Digits(els.mobile.value);
+  els.fax.value = only8Digits(els.fax.value);
+
+  const d = els.direct.value;
+  const m = els.mobile.value;
+  const f = els.fax.value;
+
+  const optional = [];
+  if(d.length === 8) optional.push({label:'D', digits8:d});
+  if(m.length === 8) optional.push({label:'M', digits8:m});
+  if(f.length === 8) optional.push({label:'F', digits8:f});
+
+  // rules
+  let error = '';
+  if(!fullName) error = 'Συμπλήρωσε Ονοματεπώνυμο.';
+  else if(!role) error = 'Συμπλήρωσε Ιδιότητα.';
+  else if(!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) error = 'Συμπλήρωσε σωστό email.';
+  else {
+    // max phones in one line: T + up to 2 extra
+    if(optional.length > 2) error = 'Έχεις συμπληρώσει D + M + F (μαζί με το T γίνονται 4). Αφαίρεσε ένα για να χωράνε σε μία γραμμή.';
+    // κάθε πρόσθετο τηλέφωνο πρέπει να είναι 8 ψηφία ήδη, άρα οκ
+  }
+
+  els.err.style.display = error ? 'block' : 'none';
+  els.err.textContent = error;
+  els.ok.style.display = (!error) ? 'block' : 'none';
+  els.ok.textContent = (!error) ? `ΟΚ: Θα παραχθεί γραμμή τηλεφώνων: T${optional.map(x=>` + ${x.label}`).join('') || ''}` : '';
+
+  // build html
+  let out = TEMPLATE;
+
+  // replace NAME (πρώτο td με line-height 22px)
+  out = out.replace(/(line-height:22px;[^>]*>\s*)([\s\S]*?)(\s*<\/td>)/, `$1${fullName}$3`);
+
+  // replace ROLE (κόκκινο td)
+  out = out.replace(/(color:#C10000;line-height:14px;[^>]*>\s*)([\s\S]*?)(\s*<\/td>)/, `$1${role}$3`);
+
+  // replace EMAIL row entirely (το πρώτο <tr ...> που περιέχει <b>E</b>)
+  out = out.replace(/<tr style="height:18px;mso-height-rule:exactly;">\s*<td height="18"[^>]*>\s*<b>E<\/b>[\s\S]*?<\/td>\s*<\/tr>/, buildEmailRow(email));
+
+  // replace PHONE row entirely (το <tr ...> που ξεκινά με <b>T</b>)
+  out = out.replace(/<tr style="height:18px;mso-height-rule:exactly;">\s*<td height="18"[^>]*>\s*<b>T<\/b>[\s\S]*?<\/td>\s*<\/tr>/, buildPhoneRow(optional));
+
+  // render
+  els.preview.innerHTML = out;
+  els.raw.textContent = out;
+
+  // enable download
+  els.btn.disabled = !!error;
+
+  // keep latest output for download
+  window.__LATEST_SIGNATURE__ = out;
+}
+
+['input','change'].forEach(evt => {
+  els.fullName.addEventListener(evt, validateAndRender);
+  els.role.addEventListener(evt, validateAndRender);
+  els.email.addEventListener(evt, validateAndRender);
+  els.direct.addEventListener(evt, validateAndRender);
+  els.mobile.addEventListener(evt, validateAndRender);
+  els.fax.addEventListener(evt, validateAndRender);
+});
+
+els.btn.addEventListener('click', () => {
+  const html = window.__LATEST_SIGNATURE__ || '';
+  const blob = new Blob([html], {type: 'text/html;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'email_signature.html';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+
+  setTimeout(() => URL.revokeObjectURL(url), 500);
+});
+
+// initial render
+validateAndRender();
+</script>
+
+</body>
+</html>
